@@ -1,14 +1,16 @@
 "use client";
 
+import { ArrowRight, Camera, Fish } from "lucide-react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Separator } from "~/components/ui/separator";
 import { Textarea } from "~/components/ui/textarea";
-import { toast } from "sonner";
 import { cn } from "~/lib/utils";
+import type { TankAnalysis } from "./api/analyze-tank/schema";
 import type { AquariumPlant, FishCatalogItem } from "./api/scrape/schema";
 
 type IdeatedItem = {
@@ -59,6 +61,8 @@ const MOCK_ITEMS: IdeatedItem[] = [
 
 export default function HomePage() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [tankAnalysis, setTankAnalysis] = useState<TankAnalysis | null>(null);
   const [prompt, setPrompt] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -73,6 +77,7 @@ export default function HomePage() {
   function handleFile(file: File) {
     if (uploadedImage) URL.revokeObjectURL(uploadedImage);
     setUploadedImage(URL.createObjectURL(file));
+    setUploadedFile(file);
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -82,30 +87,108 @@ export default function HomePage() {
     if (file) handleFile(file);
   }
 
+  function scrapeSSE<T>(
+    type: "fish" | "plants",
+    onProgress: (msg: string) => void,
+  ): Promise<T[]> {
+    return new Promise((resolve, reject) => {
+      console.log(`[scrape:${type}] Opening SSE connection`);
+      const es = new EventSource(`/api/scrape?type=${type}`);
+      let completed = false;
+
+      const timer = setTimeout(() => {
+        if (completed) return;
+        completed = true;
+        es.close();
+        console.warn(`[scrape:${type}] Timed out after 5 minutes`);
+        reject(new Error("Scrape timed out after 5 minutes"));
+      }, 300_000);
+
+      es.onmessage = (e: MessageEvent) => {
+        const event = JSON.parse(e.data as string) as
+          | { type: "progress"; purpose: string }
+          | { type: "complete"; data: T[] }
+          | { type: "error"; message: string };
+
+        console.log(`[scrape:${type}] Message:`, event);
+
+        if (event.type === "progress") {
+          onProgress(event.purpose);
+        } else if (event.type === "complete") {
+          console.log(`[scrape:${type}] Complete — ${event.data.length} items`);
+          clearTimeout(timer);
+          completed = true;
+          es.close();
+          resolve(event.data);
+        } else if (event.type === "error") {
+          console.error(`[scrape:${type}] Server error:`, event.message);
+          clearTimeout(timer);
+          completed = true;
+          es.close();
+          reject(new Error(event.message));
+        }
+      };
+
+      es.onerror = () => {
+        if (completed) return;
+        console.error(`[scrape:${type}] Connection lost`);
+        clearTimeout(timer);
+        completed = true;
+        es.close();
+        reject(new Error("Connection lost"));
+      };
+    });
+  }
+
   async function handleSearch() {
     setHasSearched(true);
     setSelectedIds(new Set());
     setHasGenerated(false);
+    setTankAnalysis(null);
 
     const toastId = toast.loading("Scraping catalog...");
 
+    async function analyzeTank(): Promise<TankAnalysis | null> {
+      if (!uploadedFile) return null;
+      const fd = new FormData();
+      fd.append("image", uploadedFile);
+      const res = await fetch("/api/analyze-tank", {
+        method: "POST",
+        body: fd,
+      });
+      const json = (await res.json()) as
+        | { success: true; data: TankAnalysis }
+        | { success: false; error: { code: string; message: string } };
+      if (json.success) return json.data;
+      toast.error(json.error.message);
+      return null;
+    }
+
     try {
-      const [plantsRes, fishRes] = await Promise.all([
-        fetch("/api/scrape?type=plants").then((r) => r.json()),
-        fetch("/api/scrape?type=fish").then((r) => r.json()),
+      const [plantsData, fishData, analysisData] = await Promise.all([
+        scrapeSSE<AquariumPlant>("plants", (msg) =>
+          toast.loading(msg, { id: toastId }),
+        ),
+        scrapeSSE<FishCatalogItem>("fish", (msg) =>
+          toast.loading(msg, { id: toastId }),
+        ),
+        analyzeTank(),
       ]);
 
-      if (plantsRes.success) setPlants(plantsRes.data as AquariumPlant[]);
-      if (fishRes.success) setFish(fishRes.data as FishCatalogItem[]);
+      setPlants(plantsData);
+      setFish(fishData);
+      if (analysisData) setTankAnalysis(analysisData);
 
-      const plantCount = plantsRes.success ? (plantsRes.data as AquariumPlant[]).length : 0;
-      const fishCount = fishRes.success ? (fishRes.data as FishCatalogItem[]).length : 0;
-      toast.success(`Found ${plantCount} plants and ${fishCount} fish`, { id: toastId });
-
+      toast.success(
+        `Found ${plantsData.length} plants and ${fishData.length} fish`,
+        { id: toastId },
+      );
       setHasGenerated(true);
     } catch (err) {
       console.error("[scrape] Error fetching catalog:", err);
-      toast.error("Failed to fetch catalog. Please try again.", { id: toastId });
+      toast.error("Failed to fetch catalog. Please try again.", {
+        id: toastId,
+      });
     }
   }
 
@@ -129,6 +212,74 @@ export default function HomePage() {
         />
         <span className="text-xl font-semibold">Fishwear</span>
       </header>
+
+      <Separator />
+
+      {/* Hero */}
+
+      <section className="relative flex h-160 w-full items-center justify-center overflow-hidden bg-black">
+        <video
+          src="/smoke_fish.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute z-0 min-h-full w-auto max-w-none min-w-full object-cover opacity-60"
+        />
+        <div className="absolute z-10 h-full w-full bg-linear-to-b from-black/60 via-transparent to-black" />
+
+        {/* Content Container */}
+        <div className="relative z-20 container mx-auto px-4 text-center">
+          <div className="mb-8 flex justify-center">
+            <Badge
+              variant="secondary"
+              className="border-cyan-500/20 bg-cyan-500/10 px-4 py-1 text-sm font-medium text-cyan-400 backdrop-blur-md"
+            >
+              <Fish className="mr-2 h-3 w-3 animate-pulse" />
+              No more mid tanks
+            </Badge>
+          </div>
+
+          <h1 className="mb-6 scroll-m-20 text-6xl font-black text-white uppercase italic lg:text-9xl">
+            We help you <br />
+            <span className="bg-linear-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+              fish fishes.
+            </span>
+          </h1>
+
+          <div className="mx-auto mb-10">
+            <p className="text-xl text-white">
+              Browsing 50 websites for driftwood is a skip. <br />
+              Drop a photo,{" "}
+              <span className="text-cyan-500 italic">visualize the drip</span>,
+              and build the ultimate vibe for your finned friends.
+            </p>
+            <p className="mt-4 text-3xl text-white uppercase">
+              We are Fishwear.
+            </p>
+          </div>
+
+          {/* Action Buttons - Using shadcn Buttons */}
+          <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
+            <Button size="lg" variant="secondary">
+              <Camera className="mr-1 h-5 w-5" />
+              Visualize My Tank
+            </Button>
+
+            <Button variant="secondary" size="lg">
+              Browse the Drop
+              <ArrowRight className="ml-1 h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Bottom subtle detail */}
+        <div className="absolute bottom-8 left-8 hidden lg:block">
+          <p className="text-[10px] tracking-[0.5em] text-zinc-500 uppercase [writing-mode:vertical-lr]">
+            Est. 2026 // Aquatic Drip
+          </p>
+        </div>
+      </section>
 
       <Separator />
 
@@ -293,6 +444,98 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Tank Analysis */}
+      {tankAnalysis && (
+        <>
+          <Separator />
+
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Tank Analysis</h2>
+
+            {tankAnalysis.tankNotes && (
+              <p className="text-muted-foreground text-sm">
+                {tankAnalysis.tankNotes}
+              </p>
+            )}
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {tankAnalysis.fishSpecies.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Fish Detected</p>
+                  <div className="space-y-2">
+                    {tankAnalysis.fishSpecies.map((species, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start justify-between rounded-lg border p-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">
+                            {species.commonName}
+                          </p>
+                          <p className="text-muted-foreground text-xs italic">
+                            {species.scientificName}
+                          </p>
+                          {species.notes && (
+                            <p className="text-muted-foreground mt-1 text-xs">
+                              {species.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <Badge variant="secondary" className="text-xs">
+                            ×{species.count}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs",
+                              species.confidenceLevel === "high" &&
+                                "border-green-500/30 text-green-600",
+                              species.confidenceLevel === "medium" &&
+                                "border-yellow-500/30 text-yellow-600",
+                              species.confidenceLevel === "low" &&
+                                "border-red-500/30 text-red-600",
+                            )}
+                          >
+                            {species.confidenceLevel}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {tankAnalysis.ornaments.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Ornaments & Decor</p>
+                  <div className="space-y-2">
+                    {tankAnalysis.ornaments.map((ornament, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start justify-between rounded-lg border p-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium capitalize">
+                            {ornament.type}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            {ornament.description}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="shrink-0 text-xs">
+                          ×{ornament.count}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
 
       {/* Final Output + Items List */}
       {hasGenerated && (

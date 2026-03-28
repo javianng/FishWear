@@ -6,18 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Development
-pnpm dev          # Start dev server with Turbopack
-pnpm build        # Production build
-pnpm start        # Start production server
-pnpm preview      # Build + start
+npm dev          # Start dev server with Turbopack
+npm build        # Production build
+npm start        # Start production server
+npm preview      # Build + start
 
 # Code quality
-pnpm check        # Lint + typecheck (run before committing)
-pnpm lint         # ESLint only
-pnpm lint:fix     # ESLint with auto-fix
-pnpm typecheck    # TypeScript only
-pnpm format:write # Prettier auto-format
-pnpm format:check # Prettier check
+npm check        # Lint + typecheck (run before committing)
+npm lint         # ESLint only
+npm lint:fix     # ESLint with auto-fix
+npm typecheck    # TypeScript only
+npm format:write # Prettier auto-format
+npm format:check # Prettier check
 ```
 
 ## Architecture

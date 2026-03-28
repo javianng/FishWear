@@ -6,110 +6,148 @@ import {
   type FishCatalogItem,
 } from "./schema";
 
-interface StreamMessageEvent {
-  message: { content: string };
-}
-
-function isMessageEvent(event: unknown): event is StreamMessageEvent {
-  if (typeof event !== "object" || event === null || !("message" in event)) {
-    return false;
-  }
-  const msg = (event as Record<string, unknown>).message;
-  return (
-    typeof msg === "object" && msg !== null && "content" in (msg as object)
-  );
-}
+export type ScrapeEvent<T> =
+  | { type: "progress"; purpose: string }
+  | { type: "complete"; data: T[] }
+  | { type: "error"; message: string };
 
 /**
  * Scrape aquarium plants from fishlist.com.sg
  */
-export async function scrapeAquariumPlants(): Promise<AquariumPlant[]> {
-  const url = "https://fishlist.com.sg/plants";
+export async function* scrapeAquariumPlants(): AsyncGenerator<
+  ScrapeEvent<AquariumPlant>
+> {
+  console.log("[scrape:plants] Calling tinyfish.agent.stream");
   const stream = await tinyfish.agent.stream({
-    url,
-    goal: `Navigate to the aquarium plants catalog page, locate each plant entry,
-           and extract the plant name, URL, and the specified attributes:
-           general_terms, placement, growth_style, care_level, lighting,
-           habitat, aesthetic_terms, functional_terms, and size.
-           Return the collected data as a structured list.`,
+    url: "https://fishlist.com.sg/collections/aquatic-plants",
+    goal: 'Navigate to https://fishlist.com.sg/collections/aquatic-plants and browse the catalog to extract each plant\'s name, size, price, colour, image link, description, and living requirements (such as lighting, CO2, and placement). Return the collected information in a structured JSON format matching: { "size": "xxx", "price": "$00.00", "colour": "xxx", "image_url": "https://example.com", "plant_name": "xxx", "description": "xxx", "living_requirements": "xxx"}',
   });
+  console.log("[scrape:plants] Stream acquired, iterating events");
 
-  const results: AquariumPlant[] = [];
+  for await (const event of stream) {
+    console.log("[scrape:plants] Raw event:", JSON.stringify(event));
 
-  try {
-    for await (const event of stream) {
-      if (!isMessageEvent(event)) continue;
-      try {
-        const parsed: unknown = JSON.parse(event.message.content);
-        const validation = AquariumPlantSchema.safeParse(parsed);
+    if (event.type === "PROGRESS") {
+      yield { type: "progress", purpose: event.purpose };
+    } else if (event.type === "COMPLETE") {
+      console.log("[scrape:plants] COMPLETE status:", event.status);
+      console.log(
+        "[scrape:plants] COMPLETE result:",
+        JSON.stringify(event.result),
+      );
+
+      if (event.status !== "COMPLETED" || event.result == null) {
+        yield {
+          type: "error",
+          message: event.error?.message ?? "Agent did not complete",
+        };
+        return;
+      }
+
+      let items: unknown[];
+      if (Array.isArray(event.result)) {
+        items = event.result;
+      } else if (typeof event.result === "object") {
+        const firstArray = Object.values(
+          event.result as Record<string, unknown>,
+        ).find((v) => Array.isArray(v));
+        items = (firstArray as unknown[]) ?? [event.result];
+      } else {
+        items = [];
+      }
+
+      console.log(
+        `[scrape:plants] Raw items (${items.length}):`,
+        JSON.stringify(items),
+      );
+
+      const data: AquariumPlant[] = [];
+      for (const item of items) {
+        const validation = AquariumPlantSchema.safeParse(item);
         if (validation.success) {
-          results.push(validation.data);
+          data.push(validation.data);
         } else {
           console.warn(
-            "[scrape] Plant schema mismatch:",
-            validation.error.flatten(),
+            "[scrape:plants] Schema mismatch:",
+            JSON.stringify(item),
+          );
+          console.warn(
+            "[scrape:plants] Errors:",
+            JSON.stringify(validation.error.flatten()),
           );
         }
-      } catch {
-        console.warn(
-          "[scrape] Failed to parse plant chunk:",
-          event.message.content,
-        );
       }
+      console.log(`[scrape:plants] Validated items: ${data.length}`);
+      yield { type: "complete", data };
     }
-  } catch (err) {
-    console.error(
-      "[scrape] Stream error (plants):",
-      err instanceof Error ? err.message : err,
-    );
-    throw err;
   }
-
-  return results;
 }
 
 /**
  * Scrape fish catalog from fishlist.com.sg
  */
-export async function scrapeFishCatalog(): Promise<FishCatalogItem[]> {
-  const url = "https://fishlist.com.sg";
+export async function* scrapeFishCatalog(): AsyncGenerator<
+  ScrapeEvent<FishCatalogItem>
+> {
+  console.log("[scrape:fish] Calling tinyfish.agent.stream");
   const stream = await tinyfish.agent.stream({
-    url,
-    goal: `Navigate to the fish catalog or species pages, extract each fish's
-           image link, size, colour, description, and living requirements.
-           Return the collected information in a structured JSON format.`,
+    url: "https://fishlist.com.sg/collections/fish",
+    goal: 'Navigate to https://fishlist.com.sg/collections/fish and browse the species catalog to extract each fish\'s breed name, size, price, colour, image link, description, and living requirements. Return the collected information in a structured JSON format matching: { "size": "0cm", "price": "$00.00", "colour": "xxx", "image_url": "https://example.com", "breed_name": "xxx", "description": "xxx", "living_requirements": "xxx"}',
   });
+  console.log("[scrape:fish] Stream acquired, iterating events");
 
-  const results: FishCatalogItem[] = [];
+  for await (const event of stream) {
+    console.log("[scrape:fish] Raw event:", JSON.stringify(event));
 
-  try {
-    for await (const event of stream) {
-      if (!isMessageEvent(event)) continue;
-      try {
-        const parsed: unknown = JSON.parse(event.message.content);
-        const validation = FishCatalogItemSchema.safeParse(parsed);
+    if (event.type === "PROGRESS") {
+      yield { type: "progress", purpose: event.purpose };
+    } else if (event.type === "COMPLETE") {
+      console.log("[scrape:fish] COMPLETE status:", event.status);
+      console.log(
+        "[scrape:fish] COMPLETE result:",
+        JSON.stringify(event.result),
+      );
+
+      if (event.status !== "COMPLETED" || event.result == null) {
+        yield {
+          type: "error",
+          message: event.error?.message ?? "Agent did not complete",
+        };
+        return;
+      }
+
+      let items: unknown[];
+      if (Array.isArray(event.result)) {
+        items = event.result;
+      } else if (typeof event.result === "object") {
+        const firstArray = Object.values(
+          event.result as Record<string, unknown>,
+        ).find((v) => Array.isArray(v));
+        items = (firstArray as unknown[]) ?? [event.result];
+      } else {
+        items = [];
+      }
+
+      console.log(
+        `[scrape:fish] Raw items (${items.length}):`,
+        JSON.stringify(items),
+      );
+
+      const data: FishCatalogItem[] = [];
+      for (const item of items) {
+        const validation = FishCatalogItemSchema.safeParse(item);
         if (validation.success) {
-          results.push(validation.data);
+          data.push(validation.data);
         } else {
+          console.warn("[scrape:fish] Schema mismatch:", JSON.stringify(item));
           console.warn(
-            "[scrape] Fish schema mismatch:",
-            validation.error.flatten(),
+            "[scrape:fish] Errors:",
+            JSON.stringify(validation.error.flatten()),
           );
         }
-      } catch {
-        console.warn(
-          "[scrape] Failed to parse fish chunk:",
-          event.message.content,
-        );
       }
+      console.log(`[scrape:fish] Validated items: ${data.length}`);
+      yield { type: "complete", data };
     }
-  } catch (err) {
-    console.error(
-      "[scrape] Stream error (fish):",
-      err instanceof Error ? err.message : err,
-    );
-    throw err;
   }
-
-  return results;
 }
