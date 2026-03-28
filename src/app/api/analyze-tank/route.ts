@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { type ApiError, type ApiSuccess } from "./schema";
 
-export const maxDuration = 800;
+export const maxDuration = 200;
 
 export async function POST(
   _request: NextRequest,
