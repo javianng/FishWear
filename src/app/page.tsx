@@ -7,37 +7,15 @@ import { Card, CardContent } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Separator } from "~/components/ui/separator";
 import { Textarea } from "~/components/ui/textarea";
+import { toast } from "sonner";
 import { cn } from "~/lib/utils";
-import { scrapeAquariumPlants, scrapeFishCatalog } from './api/scrape/scrape';
+import type { AquariumPlant, FishCatalogItem } from "./api/scrape/schema";
 
 type IdeatedItem = {
   id: number;
   imageUrl: string;
   description: string;
   category: "fish" | "ornament";
-};
-
-export type AquariumPlant = {
-  url: string;
-  name: string;
-  size: string;
-  habitat: string;
-  lighting: string;
-  placement: string;
-  care_level: string;
-  growth_style: string;
-  general_terms: string;
-  aesthetic_terms: string;
-  functional_terms: string;
-};
-
-export type Fish = {
-  name: string;
-  size: string;
-  colour: string;
-  image_link: string;
-  description: string;
-  living_requirements: string;
 };
 
 const MOCK_ITEMS: IdeatedItem[] = [
@@ -87,7 +65,7 @@ export default function HomePage() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [plants, setPlants] = useState<AquariumPlant[]>([]);
-  const [fish, setFish] = useState<Fish[]>([]);
+  const [fish, setFish] = useState<FishCatalogItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedItems = MOCK_ITEMS.filter((i) => selectedIds.has(i.id));
@@ -109,21 +87,25 @@ export default function HomePage() {
     setSelectedIds(new Set());
     setHasGenerated(false);
 
+    const toastId = toast.loading("Scraping catalog...");
+
     try {
-      // Call your scraping functions
-      const scrapedPlants = await scrapeAquariumPlants();
-      const scrapedFish = await scrapeFishCatalog();
+      const [plantsRes, fishRes] = await Promise.all([
+        fetch("/api/scrape?type=plants").then((r) => r.json()),
+        fetch("/api/scrape?type=fish").then((r) => r.json()),
+      ]);
 
-      // Store results in state
-      setPlants(scrapedPlants);
-      setFish(scrapedFish);
+      if (plantsRes.success) setPlants(plantsRes.data as AquariumPlant[]);
+      if (fishRes.success) setFish(fishRes.data as FishCatalogItem[]);
 
-      console.log('Scraped Plants:', scrapedPlants);
-      console.log('Scraped Fish:', scrapedFish);
+      const plantCount = plantsRes.success ? (plantsRes.data as AquariumPlant[]).length : 0;
+      const fishCount = fishRes.success ? (fishRes.data as FishCatalogItem[]).length : 0;
+      toast.success(`Found ${plantCount} plants and ${fishCount} fish`, { id: toastId });
 
       setHasGenerated(true);
     } catch (err) {
-      console.error('Error scraping:', err);
+      console.error("[scrape] Error fetching catalog:", err);
+      toast.error("Failed to fetch catalog. Please try again.", { id: toastId });
     }
   }
 
