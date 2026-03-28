@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { scrapeAquariumPlants, scrapeFishCatalog } from "./scrape";
 
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 const QuerySchema = z.object({
   type: z.enum(["plants", "fish"]),
