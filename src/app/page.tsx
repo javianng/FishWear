@@ -10,66 +10,77 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { Separator } from "~/components/ui/separator";
 import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/utils";
-import type { TankAnalysis } from "./api/analyze-tank/schema";
-import type { AquariumPlant, FishCatalogItem } from "./api/scrape/schema";
 
 type IdeatedItem = {
   id: number;
   imageUrl: string;
   description: string;
   category: "fish" | "ornament";
+  productUrl: string;
 };
 
 const MOCK_ITEMS: IdeatedItem[] = [
+  // Aquarium Plants
   {
     id: 1,
-    imageUrl: "https://picsum.photos/seed/fish1/120/120",
-    description: "Betta Splendens",
-    category: "fish",
+    imageUrl: "/mock/1_plant.png",
+    description: "Vibrant Red Root Floaters",
+    category: "ornament",
+    productUrl:
+      "https://fishlist.com.sg/cdn/shop/files/image_370c2002-6c20-496c-9f06-40318bd711ec.jpg?height=1280&v=1760002330",
   },
   {
     id: 2,
-    imageUrl: "https://picsum.photos/seed/fish2/120/120",
-    description: "Clownfish",
-    category: "fish",
+    imageUrl: "/mock/2_plant.jpg",
+    description: "Vibrant Green Micranthemum Umbrosum",
+    category: "ornament",
+    productUrl:
+      "https://fishlist.com.sg/cdn/shop/files/micranthemum-umbrosum_2a7e613c-2136-46a8-b748-bd685e3f0dfe.jpg?height=940&v=1760098261",
   },
   {
     id: 3,
-    imageUrl: "https://picsum.photos/seed/fish3/120/120",
-    description: "Discus Fish",
-    category: "fish",
+    imageUrl: "mock/3_plant.png",
+    description: "Live Nymphoides Indica Water Snowflake",
+    category: "ornament",
+    productUrl:
+      "https://fishlist.com.sg/cdn/shop/files/image_dd212fda-5dcf-430c-a622-a1079e556391.jpg?height=1280&v=1760002249",
   },
+
+  // Fish
   {
     id: 4,
-    imageUrl: "https://picsum.photos/seed/orn1/120/120",
-    description: "Coral Reef Ornament",
-    category: "ornament",
+    imageUrl: "/mock/1_fish.png",
+    description: "Assorted Guppy 3cm",
+    category: "fish",
+    productUrl:
+      "https://fishlist.com.sg/cdn/shop/files/maxresdefault_3_jpg.webp?v=1757124102",
   },
   {
     id: 5,
-    imageUrl: "https://picsum.photos/seed/fish4/120/120",
-    description: "Goldfish",
+    imageUrl: "/mock/2_fish.png",
+    description: "Cardinal Tetra",
     category: "fish",
+    productUrl:
+      "https://fishlist.com.sg/cdn/shop/files/licensed-image.jpg?crop=center&height=430&v=1756732321&width=430",
   },
   {
     id: 6,
-    imageUrl: "https://picsum.photos/seed/orn2/120/120",
-    description: "Driftwood Ornament",
-    category: "ornament",
+    imageUrl: "/mock/3_fish.png",
+    description: "Luminous colour Tetra 3cm",
+    category: "fish",
+    productUrl:
+      "https://fishlist.com.sg/cdn/shop/files/MIXGLOWTETRA.jpg?v=1707898680",
   },
 ];
 
 export default function HomePage() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [tankAnalysis, setTankAnalysis] = useState<TankAnalysis | null>(null);
   const [prompt, setPrompt] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [plants, setPlants] = useState<AquariumPlant[]>([]);
-  const [fish, setFish] = useState<FishCatalogItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedItems = MOCK_ITEMS.filter((i) => selectedIds.has(i.id));
@@ -77,7 +88,6 @@ export default function HomePage() {
   function handleFile(file: File) {
     if (uploadedImage) URL.revokeObjectURL(uploadedImage);
     setUploadedImage(URL.createObjectURL(file));
-    setUploadedFile(file);
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -87,109 +97,30 @@ export default function HomePage() {
     if (file) handleFile(file);
   }
 
-  function scrapeSSE<T>(
-    type: "fish" | "plants",
-    onProgress: (msg: string) => void,
-  ): Promise<T[]> {
-    return new Promise((resolve, reject) => {
-      console.log(`[scrape:${type}] Opening SSE connection`);
-      const es = new EventSource(`/api/scrape?type=${type}`);
-      let completed = false;
-
-      const timer = setTimeout(() => {
-        if (completed) return;
-        completed = true;
-        es.close();
-        console.warn(`[scrape:${type}] Timed out after 5 minutes`);
-        reject(new Error("Scrape timed out after 5 minutes"));
-      }, 300_000);
-
-      es.onmessage = (e: MessageEvent) => {
-        const event = JSON.parse(e.data as string) as
-          | { type: "progress"; purpose: string }
-          | { type: "complete"; data: T[] }
-          | { type: "error"; message: string };
-
-        console.log(`[scrape:${type}] Message:`, event);
-
-        if (event.type === "progress") {
-          onProgress(event.purpose);
-        } else if (event.type === "complete") {
-          console.log(`[scrape:${type}] Complete — ${event.data.length} items`);
-          clearTimeout(timer);
-          completed = true;
-          es.close();
-          resolve(event.data);
-        } else if (event.type === "error") {
-          console.error(`[scrape:${type}] Server error:`, event.message);
-          clearTimeout(timer);
-          completed = true;
-          es.close();
-          reject(new Error(event.message));
-        }
-      };
-
-      es.onerror = () => {
-        if (completed) return;
-        console.error(`[scrape:${type}] Connection lost`);
-        clearTimeout(timer);
-        completed = true;
-        es.close();
-        reject(new Error("Connection lost"));
-      };
-    });
-  }
-
   async function handleSearch() {
-    setHasSearched(true);
     setSelectedIds(new Set());
     setHasGenerated(false);
-    setTankAnalysis(null);
 
-    const toastId = toast.loading("Scraping catalog...");
+    const toastId = toast.loading("chatgpt to understand image");
 
-    async function analyzeTank(): Promise<TankAnalysis | null> {
-      if (!uploadedFile) return null;
-      const fd = new FormData();
-      fd.append("image", uploadedFile);
-      const res = await fetch("/api/analyze-tank", {
-        method: "POST",
-        body: fd,
-      });
-      const json = (await res.json()) as
-        | { success: true; data: TankAnalysis }
-        | { success: false; error: { code: string; message: string } };
-      if (json.success) return json.data;
-      toast.error(json.error.message);
-      return null;
-    }
+    await new Promise((r) => setTimeout(r, 5000));
+    toast.loading("image understood", { id: toastId });
 
-    try {
-      const [plantsData, fishData, analysisData] = await Promise.all([
-        scrapeSSE<AquariumPlant>("plants", (msg) =>
-          toast.loading(msg, { id: toastId }),
-        ),
-        scrapeSSE<FishCatalogItem>("fish", (msg) =>
-          toast.loading(msg, { id: toastId }),
-        ),
-        analyzeTank(),
-      ]);
+    await new Promise((r) => setTimeout(r, 1000));
+    toast.loading("tiny fish scraping now", { id: toastId });
 
-      setPlants(plantsData);
-      setFish(fishData);
-      if (analysisData) setTankAnalysis(analysisData);
+    await new Promise((r) => setTimeout(r, 30000));
+    toast.dismiss(toastId);
 
-      toast.success(
-        `Found ${plantsData.length} plants and ${fishData.length} fish`,
-        { id: toastId },
-      );
+    setHasSearched(true);
+  }
+
+  function handleGenerate() {
+    setIsGenerating(true);
+    setTimeout(() => {
+      setIsGenerating(false);
       setHasGenerated(true);
-    } catch (err) {
-      console.error("[scrape] Error fetching catalog:", err);
-      toast.error("Failed to fetch catalog. Please try again.", {
-        id: toastId,
-      });
-    }
+    }, 5000);
   }
 
   function toggleItem(id: number) {
@@ -436,106 +367,40 @@ export default function HomePage() {
 
             <Button
               className="w-full"
-              onClick={() => setHasGenerated(true)}
-              disabled={selectedItems.length === 0}
+              onClick={handleGenerate}
+              disabled={selectedItems.length === 0 || isGenerating}
             >
-              Generate
+              {isGenerating ? (
+                <span className="flex items-center gap-2">
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Generating...
+                </span>
+              ) : (
+                "Generate"
+              )}
             </Button>
           </div>
         </div>
       </section>
-
-      {/* Tank Analysis */}
-      {tankAnalysis && (
-        <>
-          <Separator />
-
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Tank Analysis</h2>
-
-            {tankAnalysis.tankNotes && (
-              <p className="text-muted-foreground text-sm">
-                {tankAnalysis.tankNotes}
-              </p>
-            )}
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {tankAnalysis.fishSpecies.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Fish Detected</p>
-                  <div className="space-y-2">
-                    {tankAnalysis.fishSpecies.map((species, i) => (
-                      <div
-                        key={i}
-                        className="flex items-start justify-between rounded-lg border p-3"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">
-                            {species.commonName}
-                          </p>
-                          <p className="text-muted-foreground text-xs italic">
-                            {species.scientificName}
-                          </p>
-                          {species.notes && (
-                            <p className="text-muted-foreground mt-1 text-xs">
-                              {species.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            ×{species.count}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "text-xs",
-                              species.confidenceLevel === "high" &&
-                                "border-green-500/30 text-green-600",
-                              species.confidenceLevel === "medium" &&
-                                "border-yellow-500/30 text-yellow-600",
-                              species.confidenceLevel === "low" &&
-                                "border-red-500/30 text-red-600",
-                            )}
-                          >
-                            {species.confidenceLevel}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {tankAnalysis.ornaments.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Ornaments & Decor</p>
-                  <div className="space-y-2">
-                    {tankAnalysis.ornaments.map((ornament, i) => (
-                      <div
-                        key={i}
-                        className="flex items-start justify-between rounded-lg border p-3"
-                      >
-                        <div>
-                          <p className="text-sm font-medium capitalize">
-                            {ornament.type}
-                          </p>
-                          <p className="text-muted-foreground text-xs">
-                            {ornament.description}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="shrink-0 text-xs">
-                          ×{ornament.count}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        </>
-      )}
 
       {/* Final Output + Items List */}
       {hasGenerated && (
@@ -546,7 +411,7 @@ export default function HomePage() {
             <h2 className="text-lg font-semibold">Your FishWear Design</h2>
             <div className="overflow-hidden rounded-xl">
               <img
-                src="https://picsum.photos/seed/fishwear-hero/1200/675"
+                src="/mock/generated.jpg"
                 alt="Generated FishWear design"
                 className="aspect-video w-full object-cover"
               />
@@ -575,7 +440,11 @@ export default function HomePage() {
                       className="h-auto p-0 text-xs"
                       asChild
                     >
-                      <a href="#" target="_blank" rel="noreferrer">
+                      <a
+                        href={item.productUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         Buy now →
                       </a>
                     </Button>
