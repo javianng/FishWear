@@ -140,7 +140,6 @@ export default function HomePage() {
     <main className="min-h-screen space-y-8 p-6">
       {/* Header */}
       <header className="flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo_cropped.png"
           alt="FishWear logo"
@@ -176,7 +175,6 @@ export default function HomePage() {
               onClick={() => fileInputRef.current?.click()}
             >
               {uploadedImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={uploadedImage}
                   alt="Uploaded reference"
@@ -255,7 +253,7 @@ export default function HomePage() {
                         {item.category}
                       </Badge>
                     </div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+
                     <img
                       src={item.imageUrl}
                       alt={item.description}
@@ -287,7 +285,6 @@ export default function HomePage() {
                     key={item.id}
                     className="flex items-center gap-3 rounded-lg border p-2"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.imageUrl}
                       alt={item.description}
@@ -323,7 +320,6 @@ export default function HomePage() {
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Your FishWear Design</h2>
             <div className="overflow-hidden rounded-xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="https://picsum.photos/seed/fishwear-hero/1200/675"
                 alt="Generated FishWear design"
@@ -338,7 +334,6 @@ export default function HomePage() {
               {selectedItems.map((item) => (
                 <Card key={item.id}>
                   <CardContent className="space-y-3 p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.imageUrl}
                       alt={item.description}
