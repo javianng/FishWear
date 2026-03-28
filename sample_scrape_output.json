@@ -1,0 +1,49 @@
+{
+    "fish_list": [
+      {
+        "name": "Assorted Guppy 3cm",
+        "size": "3cm",
+        "colour": "Assorted (Rainbow variety)",
+        "image_link": "https://fishlist.com.sg/cdn/shop/files/maxresdefault_3_jpg.webp?v=1757124102",
+        "description": "The Assorted Guppy 3cm is a vibrant and eye-catching addition to any aquarium. With a variety of colors from the rainbow, these guppies are sure to add a pop of color to your underwater world. A perfect choice for beginners or experienced fish owners alike.",
+        "living_requirements": "Maintain clean tank and equipment; Fresh, dechlorinated water; Ensure compatibility with other tank mates.",
+        "count": 3
+      },
+      {
+        "name": "Cardinal Tetra",
+        "size": "2.5-2.8cm",
+        "colour": "Vivid red and blue stripes",
+        "image_link": "https://fishlist.com.sg/cdn/shop/files/licensed-image.jpg?crop=center&height=430&v=1756732321&width=430",
+        "description": "Cardinal Tetras are popular schooling fish known for their striking neon red and blue colors, making them a centerpiece for many community aquariums.",
+        "living_requirements": "Maintain clean tank and equipment; Fresh, dechlorinated water; Ensure compatibility with other tank mates.",
+        "count": 2
+      },
+      {
+        "name": "Luminous colour Tetra 3cm",
+        "size": "3cm",
+        "colour": "Luminous (Red, Green, Blue, Purple, Yellow, Assorted)",
+        "image_link": "https://fishlist.com.sg/cdn/shop/files/MIXGLOWTETRA.jpg?v=1707898680",
+        "description": "Enhance your tank with Luminous Tetra's dazzling disco feature. Watch as these 3cm tetras light up your aquarium with their vibrant colors and playful movements, transforming your tank into a mesmerizing underwater dance party.",
+        "living_requirements": "Maintain clean tank and equipment; Fresh, dechlorinated water; Ensure compatibility with other tank mates.",
+        "count": 1
+      },
+      {
+        "name": "Rosy Tetra 3cm",
+        "size": "3cm",
+        "colour": "Bright pink and orange hues",
+        "image_link": "https://fishlist.com.sg/cdn/shop/files/Rosy-Tetra_Steve-Bower_Shutterstock.jpg?v=1698844905",
+        "description": "Add a touch of vibrant color to your tank with Rosy tetra. These small fish bring a burst of life to any aquatic environment with their bright hues and active nature.",
+        "living_requirements": "Maintain clean tank and equipment; Fresh, dechlorinated water; Ensure compatibility with other tank mates.",
+        "count": 1
+      },
+      {
+        "name": "Longfin Panda Corydoras (3cm)",
+        "size": "3cm",
+        "colour": "White/Light body with black panda-like markings",
+        "image_link": "https://fishlist.com.sg/cdn/shop/files/ChatGPT_Image_Jan_20_2026_12_48_03_PM.png?v=1768995464",
+        "description": "Featuring unique long fins, the Longfin Panda Corydoras is a perfect addition to any aquarium. They are active bottom-dwellers that help keep the tank clean by eating leftover food and debris.",
+        "living_requirements": "Maintain clean tank and equipment; Fresh, dechlorinated water; Ensure compatibility with other tank mates.",
+        "count": 3
+      }
+    ]
+  }
