@@ -8,12 +8,36 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { Separator } from "~/components/ui/separator";
 import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/utils";
+import { scrapeAquariumPlants, scrapeFishCatalog } from './api/scrape/scrape';
 
 type IdeatedItem = {
   id: number;
   imageUrl: string;
   description: string;
   category: "fish" | "ornament";
+};
+
+export type AquariumPlant = {
+  url: string;
+  name: string;
+  size: string;
+  habitat: string;
+  lighting: string;
+  placement: string;
+  care_level: string;
+  growth_style: string;
+  general_terms: string;
+  aesthetic_terms: string;
+  functional_terms: string;
+};
+
+export type Fish = {
+  name: string;
+  size: string;
+  colour: string;
+  image_link: string;
+  description: string;
+  living_requirements: string;
 };
 
 const MOCK_ITEMS: IdeatedItem[] = [
@@ -62,6 +86,8 @@ export default function HomePage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [plants, setPlants] = useState<AquariumPlant[]>([]);
+  const [fish, setFish] = useState<Fish[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedItems = MOCK_ITEMS.filter((i) => selectedIds.has(i.id));
@@ -78,10 +104,27 @@ export default function HomePage() {
     if (file) handleFile(file);
   }
 
-  function handleSearch() {
+  async function handleSearch() {
     setHasSearched(true);
     setSelectedIds(new Set());
     setHasGenerated(false);
+
+    try {
+      // Call your scraping functions
+      const scrapedPlants = await scrapeAquariumPlants();
+      const scrapedFish = await scrapeFishCatalog();
+
+      // Store results in state
+      setPlants(scrapedPlants);
+      setFish(scrapedFish);
+
+      console.log('Scraped Plants:', scrapedPlants);
+      console.log('Scraped Fish:', scrapedFish);
+
+      setHasGenerated(true);
+    } catch (err) {
+      console.error('Error scraping:', err);
+    }
   }
 
   function toggleItem(id: number) {
