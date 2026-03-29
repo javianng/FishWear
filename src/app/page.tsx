@@ -240,8 +240,9 @@ export default function HomePage() {
               </p>
               <p className="font-semibold">Upload Your Tank</p>
               <p className="text-muted-foreground text-xs">
-                Drop a photo of your dream tank and/or describe the vibe you're
-                going for. Hit Search to find matching fish and plants.
+                Drop a photo of your dream tank and/or describe the vibe
+                you&apos;re going for. Hit Search to find matching fish and
+                plants.
               </p>
             </div>
 
