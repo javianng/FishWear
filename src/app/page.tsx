@@ -101,15 +101,15 @@ export default function HomePage() {
     setSelectedIds(new Set());
     setHasGenerated(false);
 
-    const toastId = toast.loading("chatgpt to understand image");
+    const toastId = toast.loading("chatgpt analyzing image");
 
-    await new Promise((r) => setTimeout(r, 5000));
+    await new Promise((r) => setTimeout(r, 500));
     toast.loading("image understood", { id: toastId });
 
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 100));
     toast.loading("tiny fish scraping now", { id: toastId });
 
-    await new Promise((r) => setTimeout(r, 30000));
+    await new Promise((r) => setTimeout(r, 3000));
     toast.dismiss(toastId);
 
     setHasSearched(true);
@@ -120,7 +120,7 @@ export default function HomePage() {
     setTimeout(() => {
       setIsGenerating(false);
       setHasGenerated(true);
-    }, 5000);
+    }, 500);
   }
 
   function toggleItem(id: number) {
@@ -134,6 +134,12 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen space-y-8 p-6">
+      {/* Demo Banner */}
+      <div className="fixed top-0 right-0 left-0 z-50 bg-amber-500/90 px-4 py-2 text-center text-sm font-medium text-black backdrop-blur-sm">
+        Demo mode - all results are simulated. No API calls are made.
+      </div>
+      <div className="h-1" />
+
       {/* Header */}
       <header className="flex items-center gap-3">
         <img
@@ -141,7 +147,7 @@ export default function HomePage() {
           alt="FishWear logo"
           className="h-10 w-auto"
         />
-        <span className="text-xl font-semibold">Fishwear</span>
+        <span className="text-xl font-semibold">FishWear</span>
       </header>
 
       <Separator />
@@ -192,7 +198,15 @@ export default function HomePage() {
 
           {/* Action Buttons - Using shadcn Buttons */}
           <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
-            <Button size="lg" variant="secondary">
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={() =>
+                document
+                  .getElementById("workbench")
+                  ?.scrollIntoView({ behavior: "smooth" })
+              }
+            >
               <Camera className="mr-1 h-5 w-5" />
               Visualize My Tank
             </Button>
@@ -215,12 +229,21 @@ export default function HomePage() {
       <Separator />
 
       {/* Workbench */}
-      <section>
+      <section id="workbench">
         <h2 className="mb-4 text-lg font-semibold">Workbench</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {/* Left: Input */}
           <div className="space-y-4">
-            <p className="text-muted-foreground text-sm font-medium">Input</p>
+            <div>
+              <p className="text-xs font-bold tracking-widest text-cyan-500 uppercase">
+                Step 1
+              </p>
+              <p className="font-semibold">Upload Your Tank</p>
+              <p className="text-muted-foreground text-xs">
+                Drop a photo of your dream tank and/or describe the vibe you're
+                going for. Hit Search to find matching fish and plants.
+              </p>
+            </div>
 
             {/* Drop zone */}
             <div
@@ -289,9 +312,16 @@ export default function HomePage() {
 
           {/* Middle: Ideated Items */}
           <div className="space-y-4">
-            <p className="text-muted-foreground text-sm font-medium">
-              Ideated Items
-            </p>
+            <div>
+              <p className="text-xs font-bold tracking-widest text-cyan-500 uppercase">
+                Step 2
+              </p>
+              <p className="font-semibold">Pick Your Items</p>
+              <p className="text-muted-foreground text-xs">
+                Browse the suggested fish and plants. Check the ones you want to
+                include in your tank build.
+              </p>
+            </div>
 
             {!hasSearched ? (
               <div className="flex h-48 items-center justify-center rounded-lg border border-dashed">
@@ -332,9 +362,16 @@ export default function HomePage() {
 
           {/* Right: Selected Items */}
           <div className="flex flex-col gap-4">
-            <p className="text-muted-foreground text-sm font-medium">
-              Selected Items
-            </p>
+            <div>
+              <p className="text-xs font-bold tracking-widest text-cyan-500 uppercase">
+                Step 3
+              </p>
+              <p className="font-semibold">Generate Your Build</p>
+              <p className="text-muted-foreground text-xs">
+                Review your selected items, then hit Generate to visualize your
+                dream tank setup.
+              </p>
+            </div>
 
             <div className="flex-1 space-y-2">
               {selectedItems.length === 0 ? (
@@ -455,6 +492,9 @@ export default function HomePage() {
           </section>
         </>
       )}
+      <footer className="text-muted-foreground border-t pt-6 pb-1 text-center text-xs">
+        © {new Date().getFullYear()} FishWear. All rights reserved.
+      </footer>
     </main>
   );
 }
